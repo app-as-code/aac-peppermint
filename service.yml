@@ -1,0 +1,124 @@
+service:
+  name: aac-peppermint
+  friendly_name: ServiceDesk
+  image_repo: pepperlabs/peppermint
+  image_tag: nightly
+  description: Ticket-System & Support-Tool
+  icon: peppermint.png
+  category: Kommunikation
+  stage: prod
+  hostname: helpdesk
+ports:
+- name: web
+  port: 3000
+  external_port: 23142
+  protocol: TCP
+- name: api
+  port: 5003
+  external_port: 23143
+  protocol: TCP
+config:
+  domain_name: example.com
+  generate_hostname: false
+  integrations:
+    homepage:
+      enabled: true
+    autodns:
+      enabled: true
+      create_wildcard: true
+    traefik:
+      enabled: true
+      cert_resolver: ionos
+      entrypoint: websecure
+      service_port: 3000
+  schema_version: 2
+stage_overrides:
+  prod:
+    service:
+      hostname: helpdesk
+    config:
+      generate_hostname: false
+secrets:
+  DB_PASSWORD: CHANGE_ME
+  SECRET: CHANGE_ME
+  POSTGRES_USER: peppermint
+  POSTGRES_PASSWORD: CHANGE_ME
+  POSTGRES_DB: peppermint
+volumes:
+  config:
+    description: Peppermint application configuration
+  db:
+    description: Data for database
+deployment_strategy:
+  main:
+    enabled: true
+    target_stage: prod
+  dev:
+    enabled: true
+    target_stage: dev
+  test:
+    enabled: false
+    target_stage: test
+  ansible-dev:
+    enabled: true
+    target_stage: dev
+  iac-dev:
+    enabled: true
+    target_stage: dev
+  template-dev:
+    enabled: true
+    target_stage: dev
+deployments:
+  docker_compose:
+    restart_policy: always
+    host_base_path: /export/docker
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    volumes:
+    - config:/config
+    environment:
+      TZ: '{{ vars.TZ }}'
+      DB_HOST: '{{ vars.DB_HOST }}'
+      PGID: '{{ vars.PGID }}'
+      PUID: '{{ vars.PUID }}'
+      DB_PORT: '{{ vars.DB_PORT }}'
+      DB_USERNAME: '{{ vars.DB_USERNAME }}'
+      DB_NAME: '{{ vars.DB_NAME }}'
+      API_URL: '{{ vars.API_URL }}'
+      APP_URL: '{{ vars.APP_URL }}'
+      DATABASE_URL: '{{ vars.DATABASE_URL }}'
+      HOST: '{{ vars.HOST }}'
+      DB_PASSWORD: '{{ secrets.DB_PASSWORD }}'
+      SECRET: '{{ secrets.SECRET }}'
+      POSTGRES_USER: '{{ secrets.POSTGRES_USER }}'
+      POSTGRES_PASSWORD: '{{ secrets.POSTGRES_PASSWORD }}'
+      POSTGRES_DB: '{{ secrets.POSTGRES_DB }}'
+dependencies:
+  database:
+    import: catalog/postgres.yml
+    overrides:
+      name: aac-peppermint-postgres
+      image_tag: 18
+      volumes:
+        db:
+          target: /var/lib/postgresql
+          description: Persistent storage for db
+      environment:
+        TZ: '{{ vars.TZ }}'
+        PGID: '{{ vars.PGID }}'
+        PUID: '{{ vars.PUID }}'
+vars:
+  TZ: Europe/Berlin
+  DB_HOST: helpdesk.example.com
+  PGID: '1000'
+  PUID: '1000'
+  DB_PORT: '5432'
+  DB_USERNAME: peppermint
+  DB_NAME: peppermint
+  API_URL: https://helpdesk.example.com
+  APP_URL: https://helpdesk.example.com
+  DATABASE_URL: CHANGE_ME
+  HOST: helpdesk.example.com

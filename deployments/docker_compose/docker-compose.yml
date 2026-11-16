@@ -1,0 +1,114 @@
+services:
+  # --- Main Application Service ---
+  aac-peppermint:
+    image: "pepperlabs/peppermint:nightly"
+    container_name: "aac-peppermint"
+    hostname: "helpdesk"
+    restart: "always"
+
+
+    environment:
+      TZ: "Europe/Berlin"
+      DB_HOST: "helpdesk.example.com"
+      PGID: "1000"
+      PUID: "1000"
+      DB_PORT: "5432"
+      DB_USERNAME: "peppermint"
+      DB_NAME: "peppermint"
+      API_URL: "https://helpdesk.example.com"
+      APP_URL: "https://helpdesk.example.com"
+      DATABASE_URL: "${DATABASE_URL:?set DATABASE_URL in .env (see .env.example)}"
+      HOST: "helpdesk.example.com"
+      DB_PASSWORD: "${DB_PASSWORD:?set DB_PASSWORD in .env (see .env.example)}"
+      SECRET: "${SECRET:?set SECRET in .env (see .env.example)}"
+      POSTGRES_USER: "peppermint"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (see .env.example)}"
+      POSTGRES_DB: "peppermint"
+
+    ports:
+      - "23142:3000/tcp"
+      - "23143:5003/tcp"
+
+    volumes:
+      - "/export/docker/aac-peppermint/config:/config"
+
+    networks:
+      - exposed
+      - interconnect
+      - secured
+      - stack_internal
+
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.aac-peppermint.rule: "Host(`helpdesk.example.com`)"
+      traefik.http.routers.aac-peppermint.entrypoints: "websecure"
+      traefik.http.routers.aac-peppermint.tls: "true"
+      traefik.http.routers.aac-peppermint.tls.certresolver: "ionos"
+      traefik.docker.network: "services-secured"
+      traefik.http.services.aac-peppermint.loadbalancer.server.port: "3000"
+      traefik.http.services.aac-peppermint.loadbalancer.server.scheme: "http"
+      auto-dns.createWildcard.aac-peppermint: "true"
+      auto-dns.customDNS.aac-peppermint: "true"
+      auto-dns.customDOMAIN.aac-peppermint: "example.com"
+      auto-dns.customHost.aac-peppermint: "helpdesk"
+      homepage.group: "Kommunikation"
+      homepage.name: "ServiceDesk"
+      homepage.href: "https://helpdesk.example.com"
+      homepage.icon: "peppermint.png"
+      homepage.description: "Ticket-System & Support-Tool"
+
+
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    depends_on:
+      aac-peppermint-postgres:
+        condition: service_healthy
+
+
+  # --- Service Dependencies (Sidecars) ---
+  aac-peppermint-postgres:
+    image: "postgres:18"
+    container_name: "aac-peppermint-postgres"
+    restart: "always"
+    
+
+    env_file:
+      - .env
+    environment:
+      TZ: "Europe/Berlin"
+      PGID: "1000"
+      PUID: "1000"
+
+
+    volumes:
+      - "/export/docker/aac-peppermint/db:/var/lib/postgresql"
+
+    networks:
+      - stack_internal
+
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER:-postgres}\" -d \"$${POSTGRES_DB:-postgres}\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+
+
+networks:
+  secured:
+    name: "services-secured"
+    external: true
+  exposed:
+    name: "services-exposed"
+    external: true
+  interconnect:
+    name: "docker-default"
+    external: true
+  stack_internal:
+    name: "aac-peppermint_stack_internal"
+    driver: "bridge"
+
